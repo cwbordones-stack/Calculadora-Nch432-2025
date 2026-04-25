@@ -52,10 +52,10 @@ function CasoVientoPanel({ caso }: { caso: CasoViento }) {
           <p className="text-xs font-semibold text-slate-600 mb-2">Techo — 4 Zonas</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
-              { label: 'Zona 1 (0→h/2)', val: presiones.techoZona1 },
-              { label: 'Zona 2 (h/2→h)', val: presiones.techoZona2 },
-              { label: 'Zona 3 (h→2h)', val: presiones.techoZona3 },
-              { label: 'Zona 4 (>2h)', val: presiones.techoZona4 },
+              { label: 'Zona 1 (0 a h/2)', val: presiones.techoZona1 },
+              { label: 'Zona 2 (h/2 a h)', val: presiones.techoZona2 },
+              { label: 'Zona 3 (h a 2h)', val: presiones.techoZona3 },
+              { label: 'Zona 4 (> 2h)', val: presiones.techoZona4 },
             ].map((z, i) => (
               <div key={i} className={`p-3 rounded-lg border ${z.val >= 0 ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'}`}>
                 <p className="text-xs text-slate-500">{z.label}</p>
@@ -106,10 +106,10 @@ function CasoVientoPanel({ caso }: { caso: CasoViento }) {
                   <td className="text-right">{(fuerzas.lateralTotal / 1000).toFixed(3)}</td>
                 </tr>
                 {[
-                  { label: 'Techo Z1', area: areas.techoZona1, p: presiones.techoZona1, f: fuerzas.detalleVertical.zona1 },
-                  { label: 'Techo Z2', area: areas.techoZona2, p: presiones.techoZona2, f: fuerzas.detalleVertical.zona2 },
-                  { label: 'Techo Z3', area: areas.techoZona3, p: presiones.techoZona3, f: fuerzas.detalleVertical.zona3 },
-                  { label: 'Techo Z4', area: areas.techoZona4, p: presiones.techoZona4, f: fuerzas.detalleVertical.zona4 },
+                  { label: 'Techo Zona 1 (0 a h/2)', area: areas.techoZona1, p: presiones.techoZona1, f: fuerzas.detalleVertical.zona1 },
+                  { label: 'Techo Zona 2 (h/2 a h)', area: areas.techoZona2, p: presiones.techoZona2, f: fuerzas.detalleVertical.zona2 },
+                  { label: 'Techo Zona 3 (h a 2h)', area: areas.techoZona3, p: presiones.techoZona3, f: fuerzas.detalleVertical.zona3 },
+                  { label: 'Techo Zona 4 (> 2h)', area: areas.techoZona4, p: presiones.techoZona4, f: fuerzas.detalleVertical.zona4 },
                 ].map((row, i) => (
                   <tr key={i} className="border-b">
                     <td className="py-1">{row.label}</td>
@@ -248,12 +248,17 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
                     {cpCaraCorta.techoPlano && (
                       <>
                         <tr className="border-b font-medium bg-slate-50"><td colSpan={4} className="py-1 text-xs text-slate-500">TECHO PLANO (θ &lt; 10°) — Caso 1 Máx Succión</td></tr>
-                        {(['zona1','zona2','zona3','zona4'] as const).map((z, i) => (
-                          <tr key={z} className="border-b">
-                            <td className="py-1">Zona {i+1}</td>
+                        {[
+                          { key: 'zona1', label: 'Zona 1 (0 a h/2)' },
+                          { key: 'zona2', label: 'Zona 2 (h/2 a h)' },
+                          { key: 'zona3', label: 'Zona 3 (h a 2h)' },
+                          { key: 'zona4', label: 'Zona 4 (> 2h)' },
+                        ].map((z) => (
+                          <tr key={z.key} className="border-b">
+                            <td className="py-1">{z.label}</td>
                             <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
-                            <td className="text-center font-semibold">{cpCaraCorta.techoPlano![z].toFixed(2)}</td>
-                            <td className="text-center font-semibold">{cpCaraLarga.techoPlano?.[z]?.toFixed(2) ?? '—'}</td>
+                            <td className="text-center font-semibold">{cpCaraCorta.techoPlano![z.key as keyof typeof cpCaraCorta.techoPlano].toFixed(2)}</td>
+                            <td className="text-center font-semibold">{cpCaraLarga.techoPlano?.[z.key as keyof typeof cpCaraLarga.techoPlano]?.toFixed(2) ?? '—'}</td>
                           </tr>
                         ))}
                       </>
