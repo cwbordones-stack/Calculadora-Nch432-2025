@@ -3,8 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Wind, Building2, TriangleAlert } from 'lucide-react';
-import type { ResultadoCalculo } from '@/types/nch432';
+import { Info, Wind, TriangleAlert } from 'lucide-react';
+import type { ResultadoCalculo, CasoViento } from '@/types/nch432';
 
 interface PanelResultadosProps {
   resultado: ResultadoCalculo | null;
@@ -22,6 +22,127 @@ function ValorResultado({ label, value, unit, destacado = false }: { label: stri
   );
 }
 
+function CasoVientoPanel({ caso }: { caso: CasoViento }) {
+  const { presiones, areas, fuerzas } = caso;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-600">{caso.descripcion}</p>
+
+      {/* Presiones netas */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Presiones Netas (kgf/m²)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className={`p-3 rounded-lg border ${presiones.muroBarlovento >= 0 ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+              <p className="text-xs text-slate-500">Muro Barlovento</p>
+              <p className="text-xl font-bold">{presiones.muroBarlovento.toFixed(2)}</p>
+            </div>
+            <div className={`p-3 rounded-lg border ${presiones.muroSotavento >= 0 ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+              <p className="text-xs text-slate-500">Muro Sotavento</p>
+              <p className="text-xl font-bold">{presiones.muroSotavento.toFixed(2)}</p>
+            </div>
+            <div className={`p-3 rounded-lg border ${presiones.murosLaterales >= 0 ? 'bg-red-50 border-red-200' : 'bg-purple-50 border-purple-200'}`}>
+              <p className="text-xs text-slate-500">Muros Laterales</p>
+              <p className="text-xl font-bold">{presiones.murosLaterales.toFixed(2)}</p>
+            </div>
+          </div>
+          <Separator className="my-3" />
+          <p className="text-xs font-semibold text-slate-600 mb-2">Techo — 4 Zonas</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { label: 'Zona 1 (0→h/2)', val: presiones.techoZona1 },
+              { label: 'Zona 2 (h/2→h)', val: presiones.techoZona2 },
+              { label: 'Zona 3 (h→2h)', val: presiones.techoZona3 },
+              { label: 'Zona 4 (>2h)', val: presiones.techoZona4 },
+            ].map((z, i) => (
+              <div key={i} className={`p-3 rounded-lg border ${z.val >= 0 ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'}`}>
+                <p className="text-xs text-slate-500">{z.label}</p>
+                <p className="text-xl font-bold">{z.val.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Áreas y Fuerzas */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Fuerzas Resultantes F = p × A</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-1 text-slate-500">Superficie</th>
+                  <th className="text-right py-1 text-slate-500">Área (m²)</th>
+                  <th className="text-right py-1 text-slate-500">p (kgf/m²)</th>
+                  <th className="text-right py-1 text-slate-500">F (kgf)</th>
+                  <th className="text-right py-1 text-slate-500">F (ton)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-1">Muro barlovento</td>
+                  <td className="text-right">{areas.muroBarloSota.toFixed(1)}</td>
+                  <td className="text-right">{presiones.muroBarlovento.toFixed(2)}</td>
+                  <td className="text-right">{fuerzas.detalleHorizontal.barlovento.toFixed(1)}</td>
+                  <td className="text-right">{(fuerzas.detalleHorizontal.barlovento / 1000).toFixed(3)}</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-1">Muro sotavento</td>
+                  <td className="text-right">{areas.muroBarloSota.toFixed(1)}</td>
+                  <td className="text-right">{presiones.muroSotavento.toFixed(2)}</td>
+                  <td className="text-right">{fuerzas.detalleHorizontal.sotavento.toFixed(1)}</td>
+                  <td className="text-right">{(fuerzas.detalleHorizontal.sotavento / 1000).toFixed(3)}</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-1">Muros laterales</td>
+                  <td className="text-right">{areas.murosLaterales.toFixed(1)}</td>
+                  <td className="text-right">{presiones.murosLaterales.toFixed(2)}</td>
+                  <td className="text-right">{fuerzas.lateralTotal.toFixed(1)}</td>
+                  <td className="text-right">{(fuerzas.lateralTotal / 1000).toFixed(3)}</td>
+                </tr>
+                {[
+                  { label: 'Techo Z1', area: areas.techoZona1, p: presiones.techoZona1, f: fuerzas.detalleVertical.zona1 },
+                  { label: 'Techo Z2', area: areas.techoZona2, p: presiones.techoZona2, f: fuerzas.detalleVertical.zona2 },
+                  { label: 'Techo Z3', area: areas.techoZona3, p: presiones.techoZona3, f: fuerzas.detalleVertical.zona3 },
+                  { label: 'Techo Z4', area: areas.techoZona4, p: presiones.techoZona4, f: fuerzas.detalleVertical.zona4 },
+                ].map((row, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="py-1">{row.label}</td>
+                    <td className="text-right">{row.area.toFixed(1)}</td>
+                    <td className="text-right">{row.p.toFixed(2)}</td>
+                    <td className="text-right">{row.f.toFixed(1)}</td>
+                    <td className="text-right">{(row.f / 1000).toFixed(3)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Separator className="my-3" />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              <p className="text-xs text-emerald-600 mb-1">∑ Resultante Horizontal</p>
+              <p className="text-xl font-bold text-emerald-800">{fuerzas.horizontal.toFixed(1)} kgf</p>
+              <p className="text-xs text-emerald-600">{(fuerzas.horizontal / 1000).toFixed(3)} ton</p>
+            </div>
+            <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
+              <p className="text-xs text-violet-600 mb-1">∑ Uplift Vertical (Techo)</p>
+              <p className="text-xl font-bold text-violet-800">{fuerzas.vertical.toFixed(1)} kgf</p>
+              <p className="text-xs text-violet-600">{(fuerzas.vertical / 1000).toFixed(3)} ton</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function PanelResultados({ resultado }: PanelResultadosProps) {
   if (!resultado) {
     return (
@@ -33,14 +154,15 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
     );
   }
 
-  const { presiones, presionesCR } = resultado;
+  const { casos, cpCaraCorta, cpCaraLarga } = resultado;
 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="basicos" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="basicos">Parámetros Básicos</TabsTrigger>
-          <TabsTrigger value="sprfv">SPRFV</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basicos">Parámetros</TabsTrigger>
+          <TabsTrigger value="cp">Cp</TabsTrigger>
+          <TabsTrigger value="sprfv">SPRFV (4 Casos)</TabsTrigger>
           <TabsTrigger value="cr">C&R</TabsTrigger>
         </TabsList>
 
@@ -49,16 +171,18 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
           <Card className="border-blue-200">
             <CardHeader className="pb-3 flex flex-row items-center gap-2">
               <Wind className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-base font-semibold text-slate-800">Presiones de Velocidad</CardTitle>
+              <CardTitle className="text-base text-blue-800">Parámetros de Cálculo</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <ValorResultado label="V (Velocidad básica)" value={resultado.V} unit="m/s" destacado />
-                <ValorResultado label="I (Importancia)" value={resultado.I} />
-                <ValorResultado label="Kd (Direccionalidad)" value={resultado.Kd} />
-                <ValorResultado label="Kzt (Topográfico)" value={resultado.Kzt} />
-                <ValorResultado label="Ke (Elevación)" value={resultado.Ke} />
-                <ValorResultado label="G (Ráfaga)" value={resultado.G} />
+                <ValorResultado label="V (velocidad)" value={resultado.V} unit="m/s" />
+                <ValorResultado label="I (importancia)" value={resultado.I} />
+                <ValorResultado label="Kd (direccionalidad)" value={resultado.Kd} />
+                <ValorResultado label="Kzt (topográfico)" value={resultado.Kzt} />
+                <ValorResultado label="Ke (elevación)" value={resultado.Ke} />
+                <ValorResultado label="G (ráfaga)" value={resultado.G} />
+                <ValorResultado label="Kz (pared)" value={resultado.Kz_pared} />
+                <ValorResultado label="GCpi" value={`±${Math.abs(resultado.GCpi_pos).toFixed(2)}`} />
               </div>
 
               <Separator />
@@ -81,168 +205,135 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
+        {/* TAB: Cp */}
+        <TabsContent value="cp" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-800">Coeficientes de Presión Interna</CardTitle>
+              <CardTitle className="text-base">Coeficientes de Presión Cp — Resumen</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <ValorResultado label="GCpi (+)" value={resultado.GCpi_pos} />
-                <ValorResultado label="GCpi (-)" value={resultado.GCpi_neg} />
-                {resultado.Ri !== 1 && (
-                  <ValorResultado label="Ri (reducción)" value={resultado.Ri} />
-                )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 text-slate-500">Superficie</th>
+                      <th className="text-left py-2 text-slate-500">Usar con</th>
+                      <th className="text-center py-2 text-slate-500">⊥ Cara Corta<br/><span className="text-xs">(L/B={cpCaraCorta.ratioLB.toFixed(2)})</span></th>
+                      <th className="text-center py-2 text-slate-500">⊥ Cara Larga<br/><span className="text-xs">(L/B={cpCaraLarga.ratioLB.toFixed(2)})</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b font-medium bg-slate-50"><td colSpan={4} className="py-1 text-xs text-slate-500">MUROS</td></tr>
+                    <tr className="border-b">
+                      <td className="py-1">Barlovento</td>
+                      <td className="py-1"><Badge variant="outline" className="text-xs">qz</Badge></td>
+                      <td className="text-center font-semibold">{cpCaraCorta.muros.barlovento.toFixed(2)}</td>
+                      <td className="text-center font-semibold">{cpCaraLarga.muros.barlovento.toFixed(2)}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-1">Sotavento</td>
+                      <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                      <td className="text-center font-semibold">{cpCaraCorta.muros.sotavento.toFixed(2)}</td>
+                      <td className="text-center font-semibold">{cpCaraLarga.muros.sotavento.toFixed(2)}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-1">Muro Lateral</td>
+                      <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                      <td className="text-center font-semibold">{cpCaraCorta.muros.laterales.toFixed(2)}</td>
+                      <td className="text-center font-semibold">{cpCaraLarga.muros.laterales.toFixed(2)}</td>
+                    </tr>
+
+                    {cpCaraCorta.techoPlano && (
+                      <>
+                        <tr className="border-b font-medium bg-slate-50"><td colSpan={4} className="py-1 text-xs text-slate-500">TECHO PLANO (θ &lt; 10°) — Caso 1 Máx Succión</td></tr>
+                        {(['zona1','zona2','zona3','zona4'] as const).map((z, i) => (
+                          <tr key={z} className="border-b">
+                            <td className="py-1">Zona {i+1}</td>
+                            <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                            <td className="text-center font-semibold">{cpCaraCorta.techoPlano![z].toFixed(2)}</td>
+                            <td className="text-center font-semibold">{cpCaraLarga.techoPlano?.[z]?.toFixed(2) ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
+
+                    {cpCaraCorta.techoPendiente && (
+                      <>
+                        <tr className="border-b font-medium bg-slate-50"><td colSpan={4} className="py-1 text-xs text-slate-500">TECHO CON PENDIENTE (θ ≥ 10°)</td></tr>
+                        <tr className="border-b">
+                          <td className="py-1">Barlovento (Succión)</td>
+                          <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                          <td className="text-center font-semibold">{cpCaraCorta.techoPendiente.barloventoSuccion.toFixed(2)}</td>
+                          <td className="text-center font-semibold">{cpCaraLarga.techoPendiente?.barloventoSuccion.toFixed(2) ?? '—'}</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-1">Barlovento (Presión)</td>
+                          <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                          <td className="text-center font-semibold">{cpCaraCorta.techoPendiente.barloventoPresion.toFixed(2)}</td>
+                          <td className="text-center font-semibold">{cpCaraLarga.techoPendiente?.barloventoPresion.toFixed(2) ?? '—'}</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-1">Sotavento</td>
+                          <td className="py-1"><Badge variant="outline" className="text-xs">qh</Badge></td>
+                          <td className="text-center font-semibold">{cpCaraCorta.techoPendiente.sotavento.toFixed(2)}</td>
+                          <td className="text-center font-semibold">{cpCaraLarga.techoPendiente?.sotavento.toFixed(2) ?? '—'}</td>
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              {resultado.Ri !== 1 && (
-                <Alert className="mt-3 bg-amber-50 border-amber-200">
-                  <Info className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-700 text-sm">
-                    Se aplicó factor de reducción Ri = {resultado.Ri.toFixed(3)} para edificio parcialmente cerrado de gran volumen.
-                  </AlertDescription>
-                </Alert>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB: SPRFV */}
+        {/* TAB: SPRFV — 4 CASOS */}
         <TabsContent value="sprfv" className="space-y-4 mt-4">
-          <Card className="border-emerald-200">
-            <CardHeader className="pb-3 flex flex-row items-center gap-2">
-              <Building2 className="h-5 w-5 text-emerald-600" />
-              <CardTitle className="text-base font-semibold text-slate-800">Presiones de Diseño SPRFV</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-500">
-                Fórmula: p = q × Kd × G × Cp − qi × Kd × (GCpi) — Se muestra el valor más desfavorable combinando GCpi positivo y negativo.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="destructive" className="text-xs">Muro Barlovento</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-red-700">{(presiones.barlovento / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-red-500 mt-1">kgf/m² (succión/presión)</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-blue-600 text-xs">Muro Sotavento</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-blue-700">{(Math.abs(presiones.sotavento) / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-blue-500 mt-1">kgf/m² (succión)</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-purple-600 text-xs">Muros Laterales</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-purple-700">{(Math.abs(presiones.laterales) / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-purple-500 mt-1">kgf/m² (succión)</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-amber-600 text-xs">Techo Barlovento</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-amber-700">{(Math.abs(presiones.techoBarlovento) / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-amber-500 mt-1">kgf/m²</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-orange-600 text-xs">Techo Sotavento</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-orange-700">{(Math.abs(presiones.techoSotavento) / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-orange-500 mt-1">kgf/m²</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-teal-50 border border-teal-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-teal-600 text-xs">Techo Centro</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-teal-700">{(Math.abs(presiones.techoCentro) / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-teal-500 mt-1">kgf/m²</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-4 rounded-lg bg-slate-100 border border-slate-300">
-                  <p className="text-sm text-slate-600 mb-1">Fuerza total aproximada</p>
-                  <p className="text-2xl font-bold text-slate-800">{(resultado.fuerzaTotal / 1000).toFixed(2)} kN</p>
-                </div>
-                <div className="p-4 rounded-lg bg-slate-100 border border-slate-300">
-                  <p className="text-sm text-slate-600 mb-1">Fuerza por metro de perímetro</p>
-                  <p className="text-2xl font-bold text-slate-800">{(resultado.fuerzaPorMetro / 1000).toFixed(2)} kN/m</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="wx_pos" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="wx_pos">{casos.Wx_pos.nombre}</TabsTrigger>
+              <TabsTrigger value="wx_neg">{casos.Wx_neg.nombre}</TabsTrigger>
+              <TabsTrigger value="wy_pos">{casos.Wy_pos.nombre}</TabsTrigger>
+              <TabsTrigger value="wy_neg">{casos.Wy_neg.nombre}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="wx_pos" className="mt-3"><CasoVientoPanel caso={casos.Wx_pos} /></TabsContent>
+            <TabsContent value="wx_neg" className="mt-3"><CasoVientoPanel caso={casos.Wx_neg} /></TabsContent>
+            <TabsContent value="wy_pos" className="mt-3"><CasoVientoPanel caso={casos.Wy_pos} /></TabsContent>
+            <TabsContent value="wy_neg" className="mt-3"><CasoVientoPanel caso={casos.Wy_neg} /></TabsContent>
+          </Tabs>
 
           <Alert className="bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800 text-sm">Carga mínima de viento</AlertTitle>
+            <AlertTitle className="text-blue-800 text-sm">Convención de signos</AlertTitle>
             <AlertDescription className="text-blue-700 text-sm">
-              Según NCh432:2025 §6.1.5, la presión del viento para SPRFV no debe ser inferior a 25.5 kgf/m² (0.25 kN/m²).
+              (+) = presión hacia la superficie (empuje). (−) = succión (alejándose de la superficie).
             </AlertDescription>
           </Alert>
         </TabsContent>
 
         {/* TAB: C&R */}
         <TabsContent value="cr" className="space-y-4 mt-4">
-          <Card className="border-violet-200">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-800">Presiones de Diseño Componentes y Revestimiento</CardTitle>
+              <CardTitle className="text-base">Componentes y Revestimiento</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-500">
-                Valores de GCp típicos para Componentes y Revestimiento según Figuras 24-37 de NCh432:2025.
-              </p>
-
+            <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-4 rounded-lg bg-violet-50 border border-violet-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-violet-600 text-xs">Muros - Borde/Zona 4</Badge>
+                {[
+                  { label: 'Muros - Borde/Zona 4', val: resultado.presionesCR.muros, color: 'violet' },
+                  { label: 'Techo - Borde/Zona 2', val: resultado.presionesCR.techoBorde, color: 'pink' },
+                  { label: 'Techo - Interior/Zona 1', val: resultado.presionesCR.techoInterior, color: 'cyan' },
+                  { label: 'Esquinas/Zona 3', val: resultado.presionesCR.esquinas, color: 'rose' },
+                ].map((item, i) => (
+                  <div key={i} className={`p-4 rounded-lg bg-${item.color}-50 border border-${item.color}-200`}>
+                    <Badge className={`bg-${item.color}-600 text-xs`}>{item.label}</Badge>
+                    <p className="text-3xl font-bold mt-2">{(item.val / 9.80665).toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 mt-1">kgf/m²</p>
                   </div>
-                  <p className="text-3xl font-bold text-violet-700">{(presionesCR.muros / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-violet-500 mt-1">kgf/m²</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-pink-50 border border-pink-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-pink-600 text-xs">Techo - Borde/Zona 2</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-pink-700">{(presionesCR.techoBorde / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-pink-500 mt-1">kgf/m²</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-cyan-50 border border-cyan-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-cyan-600 text-xs">Techo - Interior/Zona 1</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-cyan-700">{(presionesCR.techoInterior / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-cyan-500 mt-1">kgf/m²</p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-rose-600 text-xs">Esquinas/Zona 3</Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-rose-700">{(presionesCR.esquinas / 9.80665).toFixed(2)}</p>
-                  <p className="text-xs text-rose-500 mt-1">kgf/m²</p>
-                </div>
+                ))}
               </div>
-
-              <Alert className="bg-amber-50 border-amber-200">
-                <Info className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-700 text-sm">
-                  Los valores de C&R son referenciales. Para valores exactos consulte las Figuras 24-44 de NCh432:2025 según la geometría y área efectiva específica.
-                </AlertDescription>
-              </Alert>
             </CardContent>
           </Card>
         </TabsContent>

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { ParametrosCalculo, ZonaViento, CategoriaOcupacion, Exposicion, TipoEdificio, TipoEstructuraSPRFV, TipoTecho } from '@/types/nch432';
+import type { ParametrosCalculo, ZonaViento, CategoriaOcupacion, Exposicion, TipoEdificio, TipoEstructuraSPRFV, TipoTecho, ConvencionEjes } from '@/types/nch432';
 import { ZONAS_VIENTO, FACTOR_IMPORTANCIA } from '@/lib/nch432';
 
 interface PanelParametrosProps {
@@ -166,38 +166,36 @@ export function PanelParametros({ params, updateParam }: PanelParametrosProps) {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="alturaMediaTecho">Altura media del techo (h) [m]</Label>
-                  <Input
-                    id="alturaMediaTecho"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={params.alturaMediaTecho}
-                    onChange={(e) => updateParam('alturaMediaTecho', Number(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="alturaAlero">Altura del alero (he) [m]</Label>
+                  <Label htmlFor="alturaAlero">Altura al alero (h_e) [m]</Label>
                   <Input
                     id="alturaAlero"
                     type="number"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     value={params.alturaAlero}
                     onChange={(e) => updateParam('alturaAlero', Number(e.target.value))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pendienteTecho">Pendiente del techo (θ) [°]</Label>
+                  <Label htmlFor="alturaCumbrera">Altura a la cumbrera (h_c) [m]</Label>
                   <Input
-                    id="pendienteTecho"
+                    id="alturaCumbrera"
                     type="number"
                     min="0"
-                    max="90"
-                    step="0.5"
-                    value={params.pendienteTecho}
-                    onChange={(e) => updateParam('pendienteTecho', Number(e.target.value))}
+                    step="0.01"
+                    value={params.alturaCumbrera}
+                    onChange={(e) => updateParam('alturaCumbrera', Number(e.target.value))}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <p className="text-xs text-slate-500 mb-1">Altura media h = (h_e + h_c) / 2</p>
+                    <p className="text-lg font-semibold text-slate-800">{params.alturaMediaTecho.toFixed(2)} m</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <p className="text-xs text-slate-500 mb-1">Pendiente θ = atan((h_c−h_e)/(B/2))</p>
+                    <p className="text-lg font-semibold text-slate-800">{params.pendienteTecho.toFixed(2)}°</p>
+                  </div>
                 </div>
               </div>
 
@@ -245,6 +243,27 @@ export function PanelParametros({ params, updateParam }: PanelParametrosProps) {
                     <SelectItem value="plano">Plano</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="convencionEjes">Convención de ejes para viento</Label>
+                <Select
+                  value={params.convencionEjes}
+                  onValueChange={(v) => updateParam('convencionEjes', v as ConvencionEjes)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="x_cara_corta">X = ⊥ cara corta (B={params.ancho}m)</SelectItem>
+                    <SelectItem value="x_cara_larga">X = ⊥ cara larga (L={params.longitud}m)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Define qué eje (X o Y) corresponde al viento perpendicular a cada cara del edificio.
+                </p>
               </div>
             </CardContent>
           </Card>

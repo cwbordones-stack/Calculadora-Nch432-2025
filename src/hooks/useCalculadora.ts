@@ -11,6 +11,7 @@ const defaultParams: ParametrosCalculo = {
   tipoTecho: 'dos_aguas',
   alturaMediaTecho: 8.19,
   alturaAlero: 7.53,
+  alturaCumbrera: 8.85,
   longitud: 85,
   ancho: 50,
   pendienteTecho: 3.022,
@@ -27,6 +28,7 @@ const defaultParams: ParametrosCalculo = {
   areaResto: 250,
   volumenInterno: 1200,
   areaEfectiva: 10,
+  convencionEjes: 'x_cara_corta',
 };
 
 export function useCalculadora() {
@@ -36,7 +38,18 @@ export function useCalculadora() {
     key: K,
     value: ParametrosCalculo[K]
   ) => {
-    setParams(prev => ({ ...prev, [key]: value }));
+    setParams(prev => {
+      const next = { ...prev, [key]: value };
+      // Auto-calcular h y θ cuando cambian he, hc o B
+      if (key === 'alturaAlero' || key === 'alturaCumbrera' || key === 'ancho') {
+        const he = key === 'alturaAlero' ? (value as number) : next.alturaAlero;
+        const hc = key === 'alturaCumbrera' ? (value as number) : next.alturaCumbrera;
+        const B = key === 'ancho' ? (value as number) : next.ancho;
+        next.alturaMediaTecho = (he + hc) / 2;
+        next.pendienteTecho = Math.atan((hc - he) / (B / 2)) * (180 / Math.PI);
+      }
+      return next;
+    });
   }, []);
 
   const resultado: ResultadoCalculo | null = useMemo(() => {

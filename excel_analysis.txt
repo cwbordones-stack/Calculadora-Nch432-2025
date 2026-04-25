@@ -1,0 +1,26 @@
+﻿python : C:\Users\cwbor\AppData\Local\Programs\Python\Python314\Lib\site-packages\openpyxl\worksheet\_reader.py:329: 
+UserWarning: Conditional Formatting extension is not supported and will be removed
+En línea: 1 Carácter: 1
++ python -c "
++ ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\cwbor\...will be removed:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  warn(msg)
+Traceback (most recent call last):
+  File "<string>", line 17, in <module>
+    print(' | '.join(vals))
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cwbor\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 81: character maps to <undefined>
+Hojas: ['Presi¾n de Viento', 'Presiones vs Altura', 'Cp - techos', 'Resumen Cp', 'SPRFV - Cara Corta', 'SPRFV - Cara Larga', 'Fuerzas Totales']
+
+=== HOJA: Presi¾n de Viento ===
+Dimensiones: A1:E43
+Filas: 43, Columnas: 5
+A1=PLANILLA DE CARGAS DE VIENTO - SPRFV - NCh432:2025
+A2=Galp¾n industrial - Techo a 2 aguas - Edificio cerrado
+A4=1. PAR┴METROS GEOM╔TRICOS DEL GALPËN
+A5=Parßmetro | B5=SÝmbolo | C5=Valor | D5=Unidad | E5=Referencia / Notas

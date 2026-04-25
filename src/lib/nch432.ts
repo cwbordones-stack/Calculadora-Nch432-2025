@@ -8,6 +8,15 @@ import type {
   TipoEstructuraSPRFV,
   ParametrosCalculo,
   ResultadoCalculo,
+  CpDireccion,
+  CpTechoPlano,
+  CpTechoPendiente,
+  CpMuros,
+  PresionesNetas,
+  AreasTributarias,
+  FuerzasResultantes,
+  CasoViento,
+  ConvencionEjes,
 } from '@/types/nch432';
 
 // ============ DATOS DE ZONAS DE VIENTO ============
@@ -207,232 +216,342 @@ export function clasificarEdificio(
 }
 
 /**
+ * Cp sotavento muro - Interpolación según Figura 4 NCh432
+ */
+export function calcularCpSotaventoMuro(LB: number): number {
+  if (LB <= 1) return -0.5;
+  if (LB <= 2) return -0.5 + (LB - 1) * 0.2;
+  if (LB <= 4) return -0.3 + (LB - 2) * 0.05;
+  return -0.2;
+}
+
+/**
+ * Cp techo plano (θ < 10°) — 4 zonas según Figura 4
+ */
+export function calcularCpTechoPlanoZonas(): CpTechoPlano {
+  return { zona1: -0.9, zona2: -0.9, zona3: -0.5, zona4: -0.3 };
+}
+
+/**
+ * Cp techo con pendiente (θ ≥ 10°) — Interpolación bilineal Figura 4
+ */
+export function calcularCpTechoPendienteValores(hL: number, theta: number): CpTechoPendiente {
+  const hLc = Math.max(0.25, Math.min(1.0, hL));
+  const angles =  [10, 15, 20, 25, 30, 35, 45, 60];
+  const hLvals = [0.25, 0.5, 1.0];
+
+  // Tabla succión barlovento
+  const sucTab = [
+    [-0.7,-0.5,-0.3,-0.2,-0.2, 0.0, 0.0, 0.01],
+    [-0.9,-0.7,-0.4,-0.3,-0.2,-0.2, 0.0, 0.01],
+    [-1.3,-1.0,-0.7,-0.5,-0.3,-0.2, 0.0, 0.01],
+  ];
+  // Tabla presión barlovento
+  const preTab = [
+    [-0.18, 0.0, 0.2, 0.3, 0.3, 0.4, 0.4, 0.6],
+    [-0.18,-0.18,0.0, 0.2, 0.2, 0.3, 0.4, 0.6],
+    [-0.18,-0.18,-0.18,0.0,0.2, 0.2, 0.3, 0.6],
+  ];
+  // Tabla sotavento
+  const sotAngles = [10, 15, 20];
+  const sotTab = [
+    [-0.3,-0.5,-0.6],
+    [-0.5,-0.5,-0.6],
+    [-0.7,-0.6,-0.6],
+  ];
+
+  function interp(vals: number[], keys: number[], key: number): number {
+    if (key <= keys[0]) return vals[0];
+    if (key >= keys[keys.length-1]) return vals[vals.length-1];
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (key >= keys[i] && key <= keys[i+1]) {
+        const t = (key - keys[i]) / (keys[i+1] - keys[i]);
+        return vals[i] + t * (vals[i+1] - vals[i]);
+      }
+    }
+    return vals[vals.length-1];
+  }
+
+  function bilinear(table: number[][], rowKeys: number[], colKeys: number[], row: number, col: number): number {
+    const rowVals = rowKeys.map((_, ri) => interp(table[ri], colKeys, col));
+    return interp(rowVals, rowKeys, row);
+  }
+
+  return {
+    barloventoSuccion: bilinear(sucTab, hLvals, angles, hLc, theta),
+    barloventoPresion: bilinear(preTab, hLvals, angles, hLc, theta),
+    sotavento: bilinear(sotTab, hLvals, sotAngles, hLc, Math.min(theta, 20)),
+  };
+}
+
+/**
+ * Calcula Cp completo para una dirección de viento
+ */
+export function calcularCpDireccion(
+  h: number, L_paralelo: number, B_frontal: number, theta: number
+): CpDireccion {
+  const ratioLB = L_paralelo / B_frontal;
+  const ratioHL = h / L_paralelo;
+
+  const muros: CpMuros = {
+    barlovento: 0.8,
+    sotavento: calcularCpSotaventoMuro(ratioLB),
+    laterales: -0.7,
+  };
+
+  let techoPlano: CpTechoPlano | null = null;
+  let techoPendiente: CpTechoPendiente | null = null;
+
+  if (theta < 10) {
+    techoPlano = calcularCpTechoPlanoZonas();
+  } else {
+    techoPendiente = calcularCpTechoPendienteValores(ratioHL, theta);
+  }
+
+  return { muros, techoPlano, techoPendiente, ratioLB, ratioHL };
+}
+
+/**
+ * Calcula áreas tributarias para una dirección de viento
+ */
+export function calcularAreasTributarias(
+  h: number, L_paralelo: number, B_frontal: number, theta: number
+): AreasTributarias {
+  const cosTheta = Math.cos(theta * Math.PI / 180);
+  const dimPerp = B_frontal; // largo del faldón perpendicular al viento
+
+  return {
+    muroBarloSota: h * dimPerp,
+    murosLaterales: h * L_paralelo,
+    techoZona1: dimPerp * (h / 2) / cosTheta,
+    techoZona2: dimPerp * (h / 2) / cosTheta,
+    techoZona3: dimPerp * h / cosTheta,
+    techoZona4: dimPerp * Math.max(L_paralelo - 2 * h, 0) / cosTheta,
+  };
+}
+
+/**
+ * Calcula presiones netas para un caso de viento
+ */
+export function calcularPresionesNetasCaso(
+  qz: number, qh: number, Kd: number, G: number,
+  GCpi: number, cp: CpDireccion
+): PresionesNetas {
+  const pIntKgf = (qh * Kd * GCpi) / 9.80665;
+
+  const pExtBar = (qz * Kd * G * cp.muros.barlovento) / 9.80665;
+  const pExtSot = (qh * Kd * G * cp.muros.sotavento) / 9.80665;
+  const pExtLat = (qh * Kd * G * cp.muros.laterales) / 9.80665;
+
+  let tZ1: number, tZ2: number, tZ3: number, tZ4: number;
+
+  if (cp.techoPlano) {
+    const tp = cp.techoPlano;
+    tZ1 = (qh * Kd * G * tp.zona1) / 9.80665 - pIntKgf;
+    tZ2 = (qh * Kd * G * tp.zona2) / 9.80665 - pIntKgf;
+    tZ3 = (qh * Kd * G * tp.zona3) / 9.80665 - pIntKgf;
+    tZ4 = (qh * Kd * G * tp.zona4) / 9.80665 - pIntKgf;
+  } else {
+    // Para techos con pendiente, usar succión máxima en las 4 zonas
+    const cpT = cp.techoPendiente!.barloventoSuccion;
+    const cpSot = cp.techoPendiente!.sotavento;
+    tZ1 = (qh * Kd * G * cpT) / 9.80665 - pIntKgf;
+    tZ2 = (qh * Kd * G * cpT) / 9.80665 - pIntKgf;
+    tZ3 = (qh * Kd * G * cpSot) / 9.80665 - pIntKgf;
+    tZ4 = (qh * Kd * G * cpSot) / 9.80665 - pIntKgf;
+  }
+
+  return {
+    muroBarlovento: pExtBar - pIntKgf,
+    muroSotavento: pExtSot - pIntKgf,
+    murosLaterales: pExtLat - pIntKgf,
+    techoZona1: tZ1,
+    techoZona2: tZ2,
+    techoZona3: tZ3,
+    techoZona4: tZ4,
+  };
+}
+
+/**
+ * Calcula fuerzas resultantes F = p × A
+ */
+export function calcularFuerzasCaso(
+  presiones: PresionesNetas, areas: AreasTributarias
+): FuerzasResultantes {
+  const fBar = presiones.muroBarlovento * areas.muroBarloSota;
+  const fSot = presiones.muroSotavento * areas.muroBarloSota;
+  const fLat = presiones.murosLaterales * areas.murosLaterales;
+
+  const fZ1 = presiones.techoZona1 * areas.techoZona1;
+  const fZ2 = presiones.techoZona2 * areas.techoZona2;
+  const fZ3 = presiones.techoZona3 * areas.techoZona3;
+  const fZ4 = presiones.techoZona4 * areas.techoZona4;
+
+  return {
+    horizontal: fBar + fSot,
+    vertical: fZ1 + fZ2 + fZ3 + fZ4,
+    detalleHorizontal: { barlovento: fBar, sotavento: fSot },
+    detalleVertical: { zona1: fZ1, zona2: fZ2, zona3: fZ3, zona4: fZ4 },
+    lateralTotal: fLat,
+  };
+}
+
+/**
+ * Construye un CasoViento completo
+ */
+export function construirCasoViento(
+  nombre: string, descripcion: string,
+  direccionViento: 'cara_corta' | 'cara_larga',
+  signoGCpi: 'positivo' | 'negativo',
+  GCpiVal: number,
+  qz: number, qh: number, Kd: number, G: number,
+  cp: CpDireccion,
+  h: number, L_paralelo: number, B_frontal: number, theta: number
+): CasoViento {
+  const presiones = calcularPresionesNetasCaso(qz, qh, Kd, G, GCpiVal, cp);
+  const areas = calcularAreasTributarias(h, L_paralelo, B_frontal, theta);
+  const fuerzas = calcularFuerzasCaso(presiones, areas);
+
+  return { nombre, descripcion, direccionViento, signoGCpi, GCpi: GCpiVal, presiones, areas, fuerzas };
+}
+
+/**
  * Cálculo principal de la norma NCh432:2025
  */
 export function calcularNCh432(params: ParametrosCalculo): ResultadoCalculo {
   const {
-    zona,
-    categoria,
-    exposicion,
-    tipoEdificio,
-    tipoEstructura,
-    alturaMediaTecho,
-    alturaAlero,
-    longitud,
-    ancho,
-    pendienteTecho,
-    tieneEfectoTopografico,
-    tipoTopografia,
-    H,
-    Lh,
-    x,
-    z_terreno,
-    elevacionSobreNivelMar,
-    volumenInterno,
-    areaAberturas,
-    areaAberturasResto,
+    zona, categoria, exposicion, tipoEdificio, tipoEstructura,
+    alturaMediaTecho, alturaAlero, longitud, ancho, pendienteTecho,
+    tieneEfectoTopografico, tipoTopografia, H, Lh, x, z_terreno,
+    elevacionSobreNivelMar, volumenInterno, areaAberturas, areaAberturasResto,
+    convencionEjes,
   } = params;
 
-  // 1. Velocidad básica
   const V = ZONAS_VIENTO[zona].V;
-
-  // 2. Factor de importancia
   const I = FACTOR_IMPORTANCIA[categoria].I;
-
-  // 3. Factor de direccionalidad (SPRFV)
   const Kd = Kd_SPRFV;
 
-  // 4. Factor topográfico
   let Kzt = 1.0;
   if (tieneEfectoTopografico) {
     Kzt = calcularKzt(tipoTopografia, H, Lh, x, z_terreno, exposicion);
   }
 
-  // 5. Factor de elevación
   const Ke = calcularKe(elevacionSobreNivelMar);
-
-  // 6. Coeficientes de exposición
   const alturaEvaluar = pendienteTecho <= 10 ? alturaAlero : alturaMediaTecho;
   const Kz_pared = calcularKz(alturaEvaluar, exposicion);
   const Kz_techo = calcularKz(alturaMediaTecho, exposicion);
 
-  // 7. Presiones de velocidad
   const qz = calcularPresionVelocidad(alturaEvaluar, V, I, exposicion, Kzt, Ke);
   const qh = calcularPresionVelocidad(alturaMediaTecho, V, I, exposicion, Kzt, Ke);
-  const qi = qh; // Para evaluación de presión interna
+  const qi = qh;
 
-  // 8. Factor de ráfaga
   const G = calcularRafaga(tipoEstructura);
-
-  // 9. Coeficientes de presión interna
   const { pos: GCpi_pos, neg: GCpi_neg } = calcularGCpi(tipoEdificio);
 
-  // 10. Factor de reducción Ri (para edificios parcialmente cerrados de gran volumen)
   const Aog = areaAberturas + areaAberturasResto;
   const Ri = tipoEdificio === 'parcialmente_cerrado' ? calcularRi(Aog, volumenInterno) : 1.0;
   const GCpi_eff_pos = GCpi_pos * Ri;
   const GCpi_eff_neg = GCpi_neg * Ri;
 
-  // 11. Coeficientes de presión externa Cp
-  // Para SPRFV - Edificios cerrados/parcialmente cerrados (Figura 4)
-  // Simplificación: valores típicos para edificios rectangulares
+  // ============ Cp para ambas direcciones ============
+  // Cara corta: viento golpea B (ancho), L es paralelo al viento
+  const cpCaraCorta = calcularCpDireccion(alturaMediaTecho, longitud, ancho, pendienteTecho);
+  // Cara larga: viento golpea L (largo), B es paralelo al viento  
+  const cpCaraLarga = calcularCpDireccion(alturaMediaTecho, ancho, longitud, pendienteTecho);
+
+  // ============ 4 Casos de Viento ============
+  const conv: ConvencionEjes = convencionEjes || 'x_cara_corta';
+
+  const caraCorta_pos = construirCasoViento(
+    conv === 'x_cara_corta' ? 'Wx+' : 'Wy+',
+    `Viento ⊥ cara corta (B=${ancho}m) + GCpi positivo`,
+    'cara_corta', 'positivo', GCpi_eff_pos,
+    qz, qh, Kd, G, cpCaraCorta,
+    alturaMediaTecho, longitud, ancho, pendienteTecho
+  );
+
+  const caraCorta_neg = construirCasoViento(
+    conv === 'x_cara_corta' ? 'Wx-' : 'Wy-',
+    `Viento ⊥ cara corta (B=${ancho}m) + GCpi negativo`,
+    'cara_corta', 'negativo', GCpi_eff_neg,
+    qz, qh, Kd, G, cpCaraCorta,
+    alturaMediaTecho, longitud, ancho, pendienteTecho
+  );
+
+  const caraLarga_pos = construirCasoViento(
+    conv === 'x_cara_corta' ? 'Wy+' : 'Wx+',
+    `Viento ⊥ cara larga (L=${longitud}m) + GCpi positivo`,
+    'cara_larga', 'positivo', GCpi_eff_pos,
+    qz, qh, Kd, G, cpCaraLarga,
+    alturaMediaTecho, ancho, longitud, pendienteTecho
+  );
+
+  const caraLarga_neg = construirCasoViento(
+    conv === 'x_cara_corta' ? 'Wy-' : 'Wx-',
+    `Viento ⊥ cara larga (L=${longitud}m) + GCpi negativo`,
+    'cara_larga', 'negativo', GCpi_eff_neg,
+    qz, qh, Kd, G, cpCaraLarga,
+    alturaMediaTecho, ancho, longitud, pendienteTecho
+  );
+
+  // Asignar según convención
+  let Wx_pos: CasoViento, Wx_neg: CasoViento, Wy_pos: CasoViento, Wy_neg: CasoViento;
+  if (conv === 'x_cara_corta') {
+    Wx_pos = caraCorta_pos; Wx_neg = caraCorta_neg;
+    Wy_pos = caraLarga_pos; Wy_neg = caraLarga_neg;
+  } else {
+    Wx_pos = caraLarga_pos; Wx_neg = caraLarga_neg;
+    Wy_pos = caraCorta_pos; Wy_neg = caraCorta_neg;
+  }
+
+  // ============ Legacy presiones (para compatibilidad) ============
   const L_B = longitud / ancho;
-  const h_L = alturaMediaTecho / longitud;
-
-  // Muro de barlovento
   const Cp_barlovento = 0.8;
-
-  // Muro de sotavento
-  let Cp_sotavento = -0.5;
-  if (L_B <= 1) Cp_sotavento = -0.5;
-  else if (L_B >= 2) Cp_sotavento = -0.3;
-  else Cp_sotavento = -0.5 + (L_B - 1) * 0.2;
-
-  // Muros laterales
+  const Cp_sotavento = calcularCpSotaventoMuro(L_B);
   const Cp_laterales = -0.7;
 
-  // Techo - valores según pendiente
-  let Cp_techoBarlovento = -0.9;
-  let Cp_techoSotavento = -0.5;
-  let Cp_techoCentro = -0.7;
-
-  if (pendienteTecho <= 10) {
-    Cp_techoBarlovento = -1.0;
-    Cp_techoSotavento = -0.8;
-    Cp_techoCentro = -0.9;
-  } else if (pendienteTecho <= 30) {
-    // Techo a dos aguas con pendiente media
-    Cp_techoBarlovento = 0.3;  // zona de barlovento puede tener presión positiva
-    Cp_techoSotavento = -0.6;
-    Cp_techoCentro = -0.3;
-  }
-
-  // Ajuste según h/L
-  if (h_L > 0.25 && h_L <= 1.0) {
-    // Valores ya considerados
-  }
-
-  // 12. Presiones de diseño SPRFV: p = q*Kd*G*Cp - qi*Kd*(GCpi)
-  // Caso con presión interna positiva (+GCpi) y negativa (-GCpi)
-  // Se toma el más desfavorable
-
-  // Presiones externas (sin presión interna) - p = q*Kd*G*Cp - qi*Kd*(GCpi)
-  const p_ext_barlovento = qz * Kd * G * Cp_barlovento;
-  const p_ext_sotavento = qh * Kd * G * Cp_sotavento;
-  const p_ext_laterales = qh * Kd * G * Cp_laterales;
-  const p_ext_techoBarlovento = qh * Kd * G * Cp_techoBarlovento;
-  const p_ext_techoSotavento = qh * Kd * G * Cp_techoSotavento;
-  const p_ext_techoCentro = qh * Kd * G * Cp_techoCentro;
-
-  // Presión interna
+  const p_ext_bar = qz * Kd * G * Cp_barlovento;
+  const p_ext_sot = qh * Kd * G * Cp_sotavento;
+  const p_ext_lat = qh * Kd * G * Cp_laterales;
   const p_int_pos = qi * Kd * GCpi_eff_pos;
   const p_int_neg = qi * Kd * GCpi_eff_neg;
 
-  // Presiones netas (combinando casos +GCpi y -GCpi)
-  const presionBarlovento = Math.max(
-    Math.abs(p_ext_barlovento - p_int_pos),
-    Math.abs(p_ext_barlovento - p_int_neg)
-  );
+  const presionBarlovento = Math.max(Math.abs(p_ext_bar - p_int_pos), Math.abs(p_ext_bar - p_int_neg));
+  const presionSotavento = Math.max(Math.abs(p_ext_sot - p_int_pos), Math.abs(p_ext_sot - p_int_neg));
+  const presionLaterales = Math.max(Math.abs(p_ext_lat - p_int_pos), Math.abs(p_ext_lat - p_int_neg));
 
-  const presionSotavento = Math.max(
-    Math.abs(p_ext_sotavento - p_int_pos),
-    Math.abs(p_ext_sotavento - p_int_neg)
-  );
+  const Cp_techo = cpCaraCorta.techoPlano ? cpCaraCorta.techoPlano.zona1 : -0.9;
+  const p_ext_techo = qh * Kd * G * Cp_techo;
+  const presionTecho = Math.max(Math.abs(p_ext_techo - p_int_pos), Math.abs(p_ext_techo - p_int_neg));
 
-  const presionLaterales = Math.max(
-    Math.abs(p_ext_laterales - p_int_pos),
-    Math.abs(p_ext_laterales - p_int_neg)
-  );
-
-  const presionTechoBarlovento = Math.max(
-    Math.abs(p_ext_techoBarlovento - p_int_pos),
-    Math.abs(p_ext_techoBarlovento - p_int_neg)
-  );
-
-  const presionTechoSotavento = Math.max(
-    Math.abs(p_ext_techoSotavento - p_int_pos),
-    Math.abs(p_ext_techoSotavento - p_int_neg)
-  );
-
-  const presionTechoCentro = Math.max(
-    Math.abs(p_ext_techoCentro - p_int_pos),
-    Math.abs(p_ext_techoCentro - p_int_neg)
-  );
-
-  // 13. Presiones para Componentes y Revestimiento
-  // GCp según Figura 24-37
-  const GCp_muro = -1.0; // zona de borde
+  // C&R
+  const GCp_muro = -1.0;
   const GCp_techo_borde = -1.5;
   const GCp_techo_interior = -0.9;
   const GCp_esquinas = -2.0;
 
-  const p_cr_muros = Math.max(
-    Math.abs(qh * Kd * GCp_muro - p_int_pos),
-    Math.abs(qh * Kd * GCp_muro - p_int_neg)
-  );
+  const p_cr_muros = Math.max(Math.abs(qh*Kd*GCp_muro - p_int_pos), Math.abs(qh*Kd*GCp_muro - p_int_neg));
+  const p_cr_techoBorde = Math.max(Math.abs(qh*Kd*GCp_techo_borde - p_int_pos), Math.abs(qh*Kd*GCp_techo_borde - p_int_neg));
+  const p_cr_techoInterior = Math.max(Math.abs(qh*Kd*GCp_techo_interior - p_int_pos), Math.abs(qh*Kd*GCp_techo_interior - p_int_neg));
+  const p_cr_esquinas = Math.max(Math.abs(qh*Kd*GCp_esquinas - p_int_pos), Math.abs(qh*Kd*GCp_esquinas - p_int_neg));
 
-  const p_cr_techoBorde = Math.max(
-    Math.abs(qh * Kd * GCp_techo_borde - p_int_pos),
-    Math.abs(qh * Kd * GCp_techo_borde - p_int_neg)
-  );
-
-  const p_cr_techoInterior = Math.max(
-    Math.abs(qh * Kd * GCp_techo_interior - p_int_pos),
-    Math.abs(qh * Kd * GCp_techo_interior - p_int_neg)
-  );
-
-  const p_cr_esquinas = Math.max(
-    Math.abs(qh * Kd * GCp_esquinas - p_int_pos),
-    Math.abs(qh * Kd * GCp_esquinas - p_int_neg)
-  );
-
-  // 14. Fuerzas totales (aproximadas)
-  // Áreas
-  const areaMuroBarlovento = ancho * alturaEvaluar;
-  const areaMuroSotavento = ancho * alturaMediaTecho;
-  const areaMuroLateral1 = longitud * alturaMediaTecho;
-  const areaMuroLateral2 = longitud * alturaMediaTecho;
-  const areaTecho = longitud * ancho;
-
-  const fuerzaBarlovento = presionBarlovento * areaMuroBarlovento;
-  const fuerzaSotavento = presionSotavento * areaMuroSotavento;
-  const fuerzaLaterales = presionLaterales * (areaMuroLateral1 + areaMuroLateral2);
-  const fuerzaTecho = presionTechoCentro * areaTecho;
-
-  const fuerzaTotal = fuerzaBarlovento + Math.abs(fuerzaSotavento) + Math.abs(fuerzaLaterales) + Math.abs(fuerzaTecho);
+  const areaMuroBar = ancho * alturaEvaluar;
+  const fuerzaTotal = presionBarlovento * areaMuroBar + presionSotavento * areaMuroBar;
   const fuerzaPorMetro = fuerzaTotal / (2 * (longitud + ancho));
 
   return {
-    V,
-    I,
-    Kd,
-    Kzt,
-    Ke,
-    qz,
-    qh,
-    qi,
-    G,
-    GCpi_pos: GCpi_eff_pos,
-    GCpi_neg: GCpi_eff_neg,
+    V, I, Kd, Kzt, Ke, qz, qh, qi, G,
+    GCpi_pos: GCpi_eff_pos, GCpi_neg: GCpi_eff_neg,
     presiones: {
-      barlovento: presionBarlovento,
-      sotavento: presionSotavento,
-      laterales: presionLaterales,
-      techoBarlovento: presionTechoBarlovento,
-      techoSotavento: presionTechoSotavento,
-      techoCentro: presionTechoCentro,
+      barlovento: presionBarlovento, sotavento: presionSotavento,
+      laterales: presionLaterales, techoBarlovento: presionTecho,
+      techoSotavento: presionTecho, techoCentro: presionTecho,
     },
-    presionesCR: {
-      muros: p_cr_muros,
-      techoBorde: p_cr_techoBorde,
-      techoInterior: p_cr_techoInterior,
-      esquinas: p_cr_esquinas,
-    },
-    fuerzaTotal,
-    fuerzaPorMetro,
-    Kz_pared,
-    Kz_techo,
-    Ri,
+    presionesCR: { muros: p_cr_muros, techoBorde: p_cr_techoBorde, techoInterior: p_cr_techoInterior, esquinas: p_cr_esquinas },
+    fuerzaTotal, fuerzaPorMetro, Kz_pared, Kz_techo, Ri,
+    convencion: conv,
+    cpCaraCorta, cpCaraLarga,
+    casos: { Wx_pos, Wx_neg, Wy_pos, Wy_neg },
   };
 }
 
