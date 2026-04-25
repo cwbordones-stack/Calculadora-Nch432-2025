@@ -3,7 +3,7 @@ import { PanelParametros } from '@/sections/PanelParametros';
 import { PanelResultados } from '@/sections/PanelResultados';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, BookOpen, FileText } from 'lucide-react';
+import { Calculator, FileText } from 'lucide-react';
 
 function App() {
   const { params, updateParam, resultado } = useCalculadora();
@@ -63,64 +63,7 @@ function App() {
           <div className="lg:col-span-7">
             <PanelResultados resultado={resultado} />
 
-            {/* RESUMEN NUMÉRICO */}
-            {resultado && (
-              <Card className="mt-4 border-slate-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-slate-500" />
-                    <CardTitle className="text-base font-semibold text-slate-800">
-                      Resumen de Fórmulas Aplicadas
-                    </CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="p-3 bg-slate-50 rounded-lg font-mono text-xs md:text-sm overflow-x-auto">
-                    <p className="text-slate-700 mb-1">
-                      <strong>Presión de velocidad:</strong> qz = 0,613 × I × Kz × Kzt × Ke × V²
-                    </p>
-                    <p className="text-slate-600 mb-1">
-                      qz = 0,613 × {resultado.I.toFixed(2)} × {resultado.Kz_pared.toFixed(3)} × {resultado.Kzt.toFixed(3)} × {resultado.Ke.toFixed(3)} × {resultado.V}²
-                    </p>
-                    <p className="text-blue-700 font-semibold">
-                      qz = {resultado.qz.toFixed(2)} N/m² = {(resultado.qz / 9.80665).toFixed(2)} kgf/m²
-                    </p>
-                  </div>
 
-                  <div className="p-3 bg-slate-50 rounded-lg font-mono text-xs md:text-sm overflow-x-auto">
-                    <p className="text-slate-700 mb-1">
-                      <strong>Presión de diseño SPRFV:</strong> p = q × Kd × G × Cp − qi × Kd × (GCpi)
-                    </p>
-                    <p className="text-slate-600 mb-1">
-                      Kd = {resultado.Kd} | G = {resultado.G} | GCpi = ±{Math.abs(resultado.GCpi_pos).toFixed(2)}
-                    </p>
-                    <p className="text-emerald-700 font-semibold">
-                      Barlovento: p = {(resultado.presiones.barlovento / 9.80665).toFixed(2)} kgf/m²
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded-lg font-mono text-xs md:text-sm overflow-x-auto">
-                    <p className="text-slate-700 mb-1">
-                      <strong>Factor topográfico:</strong> Kzt = (1 + K1 × K2 × K3)²
-                    </p>
-                    <p className="text-blue-700 font-semibold">
-                      Kzt = {resultado.Kzt.toFixed(3)}
-                    </p>
-                  </div>
-
-                  {resultado.Ri < 1 && (
-                    <div className="p-3 bg-slate-50 rounded-lg font-mono text-xs md:text-sm overflow-x-auto">
-                      <p className="text-slate-700 mb-1">
-                        <strong>Factor de reducción:</strong> Ri = 1 / (1 + 0,0116 × (Aog/Vi)^(-0,5))
-                      </p>
-                      <p className="text-amber-700 font-semibold">
-                        Ri = {resultado.Ri.toFixed(3)} (aplicado a GCpi)
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {/* DISCLAIMER */}
             <Card className="mt-4 border-amber-200 bg-amber-50">
