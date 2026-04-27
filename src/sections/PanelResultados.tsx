@@ -193,14 +193,10 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
                 <ValorResultado label="qi (interna)" value={resultado.qi} unit="N/m²" destacado />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
                   <p className="text-xs text-emerald-600 mb-1">qz en kgf/m²</p>
                   <p className="text-2xl font-bold text-emerald-800">{(resultado.qz / 9.80665).toFixed(2)} kgf/m²</p>
-                </div>
-                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                  <p className="text-xs text-emerald-600 mb-1">qh en kgf/m²</p>
-                  <p className="text-2xl font-bold text-emerald-800">{(resultado.qh / 9.80665).toFixed(2)} kgf/m²</p>
                 </div>
               </div>
             </CardContent>
