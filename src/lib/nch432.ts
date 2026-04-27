@@ -318,15 +318,23 @@ export function calcularAreasTributarias(
   h: number, L_paralelo: number, B_frontal: number, theta: number
 ): AreasTributarias {
   const cosTheta = Math.cos(theta * Math.PI / 180);
-  const dimPerp = B_frontal; // largo del faldón perpendicular al viento
+  
+  // Para muros: el ancho de la cara expuesta al viento
+  const dimMuros = B_frontal; 
+  
+  // Para techos: ajustado a la convención de la planilla del usuario
+  // donde el ancho de la zona del techo corresponde a la dimensión paralela al viento
+  // y la profundidad de la zona corresponde a la dimensión frontal.
+  const dimAnchoTecho = L_paralelo; 
+  const dimProfTecho = B_frontal; 
 
   return {
-    muroBarloSota: h * dimPerp,
+    muroBarloSota: h * dimMuros,
     murosLaterales: h * L_paralelo,
-    techoZona1: dimPerp * (h / 2) / cosTheta,
-    techoZona2: dimPerp * (h / 2) / cosTheta,
-    techoZona3: dimPerp * h / cosTheta,
-    techoZona4: dimPerp * Math.max(L_paralelo - 2 * h, 0) / cosTheta,
+    techoZona1: dimAnchoTecho * (h / 2) / cosTheta,
+    techoZona2: dimAnchoTecho * (h / 2) / cosTheta,
+    techoZona3: dimAnchoTecho * h / cosTheta,
+    techoZona4: dimAnchoTecho * Math.max(dimProfTecho - 2 * h, 0) / cosTheta,
   };
 }
 
