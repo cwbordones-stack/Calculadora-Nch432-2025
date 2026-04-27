@@ -187,11 +187,7 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ValorResultado label="qz (paredes)" value={resultado.qz} unit="N/m²" destacado />
-                <ValorResultado label="qh (techo)" value={resultado.qh} unit="N/m²" destacado />
-                <ValorResultado label="qi (interna)" value={resultado.qi} unit="N/m²" destacado />
-              </div>
+
 
               <div className="grid grid-cols-1 gap-3">
                 <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
