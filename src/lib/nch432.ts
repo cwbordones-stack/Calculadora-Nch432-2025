@@ -456,10 +456,9 @@ export function calcularNCh432(params: ParametrosCalculo): ResultadoCalculo {
   const G = calcularRafaga(tipoEstructura);
   const { pos: GCpi_pos, neg: GCpi_neg } = calcularGCpi(tipoEdificio);
 
-  const Aog = areaAberturas + areaAberturasResto;
-  const Ri = tipoEdificio === 'parcialmente_cerrado' ? calcularRi(Aog, volumenInterno) : 1.0;
-  const GCpi_eff_pos = GCpi_pos * Ri;
-  const GCpi_eff_neg = GCpi_neg * Ri;
+  const Ri = 1.0;
+  const GCpi_eff_pos = GCpi_pos;
+  const GCpi_eff_neg = GCpi_neg;
 
   // ============ Cp para ambas direcciones ============
   // Cara corta: viento golpea B (ancho), L es paralelo al viento
@@ -549,7 +548,6 @@ export function calcularNCh432(params: ParametrosCalculo): ResultadoCalculo {
 
   return {
     V, I, Kd, Kzt, Ke, qz, qh, qi, G,
-    GCpi_base_pos: GCpi_pos, GCpi_base_neg: GCpi_neg,
     GCpi_pos: GCpi_eff_pos, GCpi_neg: GCpi_eff_neg,
     presiones: {
       barlovento: presionBarlovento, sotavento: presionSotavento,

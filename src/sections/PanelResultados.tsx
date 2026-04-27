@@ -182,9 +182,7 @@ export function PanelResultados({ resultado }: PanelResultadosProps) {
                 <ValorResultado label="Ke (elevación)" value={resultado.Ke} />
                 <ValorResultado label="G (ráfaga)" value={resultado.G} />
                 <ValorResultado label="Kz (pared)" value={resultado.Kz_pared} />
-                <ValorResultado label="GCpi Base (Tabla 7)" value={`±${Math.abs(resultado.GCpi_base_pos).toFixed(2)}`} destacado />
-                <ValorResultado label="Ri (Reducción Vol.)" value={resultado.Ri.toFixed(3)} />
-                <ValorResultado label="GCpi Efectivo" value={`±${Math.abs(resultado.GCpi_pos).toFixed(3)}`} destacado />
+                <ValorResultado label="GCpi" value={`±${Math.abs(resultado.GCpi_pos).toFixed(2)}`} />
               </div>
 
               <Separator />
