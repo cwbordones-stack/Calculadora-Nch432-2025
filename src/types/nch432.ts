@@ -126,6 +126,8 @@ export interface ResultadoCalculo {
   G: number;
   
   // Presión interna
+  GCpi_base_pos: number;
+  GCpi_base_neg: number;
   GCpi_pos: number;
   GCpi_neg: number;
   

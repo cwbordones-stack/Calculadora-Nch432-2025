@@ -549,6 +549,7 @@ export function calcularNCh432(params: ParametrosCalculo): ResultadoCalculo {
 
   return {
     V, I, Kd, Kzt, Ke, qz, qh, qi, G,
+    GCpi_base_pos: GCpi_pos, GCpi_base_neg: GCpi_neg,
     GCpi_pos: GCpi_eff_pos, GCpi_neg: GCpi_eff_neg,
     presiones: {
       barlovento: presionBarlovento, sotavento: presionSotavento,
