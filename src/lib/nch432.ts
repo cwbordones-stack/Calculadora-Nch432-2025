@@ -431,7 +431,7 @@ export function calcularNCh432(params: ParametrosCalculo): ResultadoCalculo {
     zona, categoria, exposicion, tipoEdificio, tipoEstructura,
     alturaMediaTecho, alturaAlero, longitud, ancho, pendienteTecho,
     tieneEfectoTopografico, tipoTopografia, H, Lh, x, z_terreno,
-    elevacionSobreNivelMar, volumenInterno, areaAberturas, areaAberturasResto,
+    elevacionSobreNivelMar,
     convencionEjes,
   } = params;
 
